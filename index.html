@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>回忆卡 · 网络安全</title>
+<style>
+  :root {
+    --bg: #101418; --panel: #1a2027; --panel2: #222a33; --line: #2e3944;
+    --text: #e8edf2; --dim: #8b9bab; --accent: #4fd1a5; --accent2: #5b9dff;
+    --warn: #f6c76c; --bad: #f2707a; --radius: 16px;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, "PingFang SC", "Noto Sans SC", sans-serif;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  header { padding: 20px 20px 8px; }
+  h1 { font-size: 22px; margin: 0; letter-spacing: .5px; }
+  .sub { color: var(--dim); font-size: 13px; margin-top: 4px; }
+  main { padding: 8px 16px 32px; }
+  .card {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 18px; margin-bottom: 14px;
+  }
+  .statrow { display: flex; gap: 12px; margin-bottom: 14px; }
+  .stat { flex: 1; text-align: center; padding: 14px 4px; }
+  .stat .num { font-size: 30px; font-weight: 700; }
+  .stat .lbl { color: var(--dim); font-size: 12px; margin-top: 4px; }
+  .due .num { color: var(--warn); } .new .num { color: var(--accent2); } .done .num { color: var(--accent); }
+  .deckrow {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 16px; background: var(--panel); border: 1px solid var(--line);
+    border-radius: var(--radius); margin-bottom: 10px; cursor: pointer;
+  }
+  .deckrow:active { background: var(--panel2); }
+  .deckrow .name { font-size: 15px; font-weight: 600; }
+  .deckrow .counts { color: var(--dim); font-size: 13px; }
+  .deckrow .counts b { color: var(--text); font-weight: 600; }
+  .btn {
+    display: block; width: 100%; padding: 15px; border-radius: 14px; border: none;
+    font-size: 16px; font-weight: 600; color: #0d1114; background: var(--accent);
+    cursor: pointer; margin-bottom: 12px;
+  }
+  .btn:active { filter: brightness(.85); }
+  .btn.secondary { background: var(--panel2); color: var(--text); border: 1px solid var(--line); }
+  .btn:disabled { opacity: .35; }
+  .btngroup { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .gradegroup { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 8px; margin-top: 8px; }
+  .gradbtn { padding: 14px 2px; border-radius: 12px; border: none; font-size: 14px; font-weight: 600; cursor: pointer; }
+  .g-again { background: #4a2328; color: var(--bad); }
+  .g-hard  { background: #46391f; color: var(--warn); }
+  .g-good  { background: #1e3a33; color: var(--accent); }
+  .g-easy  { background: #1d3040; color: var(--accent2); }
+  .tagline { color: var(--dim); font-size: 12px; margin-bottom: 10px; }
+  .quiz-card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 22px 18px; margin-top: 6px; }
+  .q-text { font-size: 17px; line-height: 1.65; white-space: pre-wrap; }
+  .a-text { font-size: 15px; line-height: 1.75; white-space: pre-wrap; color: #cfe3d8; border-top: 1px dashed var(--line); margin-top: 16px; padding-top: 16px; }
+  code, .mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: .92em; color: #a8d5c2; }
+  .toprow { display: flex; justify-content: space-between; align-items: center; padding: 4px 20px 0; }
+  .link { color: var(--dim); background: none; border: none; font-size: 14px; cursor: pointer; padding: 6px; }
+  .muted-tip { color: var(--dim); font-size: 13px; line-height: 1.7; padding: 0 4px; }
+  .toast {
+    position: fixed; left: 50%; bottom: 40px; transform: translateX(-50%);
+    background: var(--panel2); border: 1px solid var(--line); color: var(--text);
+    padding: 10px 18px; border-radius: 12px; font-size: 14px; display: none; z-index: 9;
+  }
+  .sessionbar { font-size: 13px; color: var(--dim); padding: 0 4px 10px; }
+  .progress { height: 4px; background: var(--line); border-radius: 2px; margin-top: 8px; }
+  .progress > div { height: 100%; background: var(--accent); border-radius: 2px; }
+  input[type="range"] { width: 100%; }
+  .setting-row { display: flex; justify-content: space-between; padding: 10px 0; align-items: center; }
+  .setting-row .lbl { font-size: 15px; }
+  .setting-row .val { color: var(--accent); font-weight: 600; }
+</style>
+</head>
+<body>
+
+<div id="home-page">
+  <div class="toprow">
+    <span style="flex:1"></span>
+    <button class="link" onclick="show('settings')" style="align-self:flex-end">设置</button>
+  </div>
+  <header>
+    <h1>回忆卡 · 网络安全</h1>
+    <div class="sub" id="todayline"></div>
+  </header>
+  <main>
+    <div class="statrow">
+      <div class="card stat due"><div class="num" id="n-due">0</div><div class="lbl">到期</div></div>
+      <div class="card stat new"><div class="num" id="n-new">0</div><div class="lbl">新卡</div></div>
+      <div class="card stat done"><div class="num" id="n-learned">0</div><div class="lbl">在学</div></div>
+    </div>
+    <div id="deck-list"></div>
+    <div class="card muted-tip" style="margin-top:18px">
+      用法：只看正面，先在心里完整复述答案，再点开背面核对。<br>
+      背面核对后按 <b>忘了 / 模糊 / 记得 / 轻松</b> 自评——调度质量取决于自评诚实度。<br>
+      重要：数据存在本机，每次换设备或清浏览器前先在「设置」里<b>导出进度</b>。
+    </div>
+  </main>
+</div>
+
+<div id="review-page" style="display:none">
+  <div class="toprow">
+    <button class="link" onclick="endSession()">退出</button>
+    <span class="sessionbar" id="sessionbar"></span>
+    <span class="link" style="visibility:hidden" >占位</span>
+  </div>
+  <main>
+    <div class="tagline" id="r-tag"></div>
+    <div class="quiz-card">
+      <div class="q-text" id="r-q"></div>
+      <div class="a-text" id="r-a" style="display:none"></div>
+    </div>
+    <div style="margin-top:14px">
+      <button class="btn" id="reveal-btn" onclick="reveal()">复述完毕，看答案</button>
+      <div class="gradegroup" id="grade-btns" style="display:none">
+        <button class="gradbtn g-again" onclick="grade('again')">忘了</button>
+        <button class="gradbtn g-hard" onclick="grade('hard')">模糊</button>
+        <button class="gradbtn g-good" onclick="grade('good')">记得</button>
+        <button class="gradbtn g-easy" onclick="grade('easy')">轻松</button>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div id="result-page" style="display:none">
+  <header><h1>本轮完成</h1><div class="sub" id="result-sub"></div></header>
+  <main>
+    <div class="card" id="result-detail" style="line-height:1.8"></div>
+    <button class="btn" onclick="show('home-page');renderHome()">回首页</button>
+    <button class="btn secondary" onclick="startSession('all')">再来一轮</button>
+  </main>
+</div>
+
+<div id="settings-page" style="display:none">
+  <div class="toprow"><button class="link" onclick="show('home-page');renderHome()">返回</button></div>
+  <header><h1>设置</h1></header>
+  <main>
+    <div class="card">
+      <div class="setting-row"><span class="lbl">每天最多学新卡</span><span class="val" id="new-limit-val">8</span></div>
+      <input type="range" min="3" max="20" value="8" oninput="setNewLimit(this.value)">
+      <div class="setting-row"><span class="lbl">每天最多复习</span><span class="val" id="rev-limit-val">80</span></div>
+      <input type="range" min="20" max="200" step="10" value="80" oninput="setRevLimit(this.value)">
+    </div>
+    <button class="btn" onclick="exportProgress()">导出进度（备份 JSON）</button>
+    <button class="btn secondary" onclick="document.getElementById('import-file').click()">导入进度（恢复备份）</button>
+    <input type="file" id="import-file" accept=".json" style="display:none" onchange="importProgress(this)">
+    <div class="card muted-tip">
+      备份文件包含配置和全部卡片进度（到期时间与自评记录）。牌组正文在 cards.js 里，更新牌组=手机上换一份新的 cards.js（进度保留，靠卡片的 id 对应）。
+    </div>
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="cards.js"></script>
+<script>
+// ===== 调度：间隔阶梯 [1,3,7,14,30,30] 天；忘了=10 分钟后重进；模糊=1 天；记得=下一档；轻松=跳两档 =====
+const LADDER = [1, 3, 7, 14, 30, 30, 60];
+const DAY = 86400000, MIN = 60000;
+const LS_KEY = "recallcs_v1";
+
+let S = loadState();
+let cfg = S.cfg || (S.cfg = { newLimit: 8, revLimit: 80 });
+let prog = S.prog || (S.prog = {});
+for (const c of CARDS) if (!prog[c.id]) prog[c.id] = { s: -1, d: 0, lapse: 0 }; // s=-1 未学习；s>=0 处于阶梯；wasNew 在老备份中用 s===-1 判断
+function save() { localStorage.setItem(LS_KEY, JSON.stringify(S)); }
+
+function loadState() {
+  try { return JSON.parse(localStorage.getItem(LS_KEY)) || {}; }
+  catch (e) { return {}; }
+}
+function toast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.style.display = "block";
+  setTimeout(() => t.style.display = "none", 1800);
+}
+const today0 = () => { const d = new Date(); d.setHours(0,0,0,0); return d.getTime(); };
+
+function stats(deck) {
+  const now = Date.now();
+  let due = 0, fresh = 0, learned = 0;
+  for (const c of CARDS) {
+    if (deck && deck !== "all" && c.deck !== deck) continue;
+    const p = prog[c.id];
+    if (p.s === -1) fresh++;
+    else { learned++; if (p.d <= now) due++; }
+  }
+  return { due, fresh, learned };
+}
+
+function renderHome() {
+  const all = stats("all");
+  document.getElementById("n-due").textContent = Math.min(all.due, cfg.revLimit) + (all.due > cfg.revLimit ? "+" : "");
+  document.getElementById("n-new").textContent = Math.min(all.fresh, cfg.newLimit);
+  document.getElementById("n-learned").textContent = all.learned;
+  const d = new Date();
+  document.getElementById("todayline").textContent =
+    `${d.getMonth()+1} 月 ${d.getDate()} 日 · 本日新卡已用 ${usedNewToday()}/${cfg.newLimit}`;
+  const el = document.getElementById("deck-list");
+  el.innerHTML = "";
+  for (const dk of DECKS) {
+    const st = stats(dk.id);
+    const row = document.createElement("div");
+    row.className = "deckrow";
+    row.onclick = () => startSession(dk.id);
+    row.innerHTML = `<div><div class="name">${dk.name}</div>
+      <div class="counts">到期 <b>${st.due}</b> · 新卡 <b>${st.fresh}</b> · 已学 ${st.learned}</div></div>
+      <div style="color:var(--dim)">›</div>`;
+    el.appendChild(row);
+  }
+}
+function usedNewToday() {
+  const key = "new_" + today0();
+  S.daily = S.daily || {}; S.daily[key] = S.daily[key] || {};
+  return Object.keys(S.daily[key]).length;
+}
+
+// ===== 会话 =====
+let queue = [], cur = null, sessionLog = null;
+
+function startSession(deck) {
+  const now = Date.now();
+  // 到期复习卡，优先级按到期早晚
+  let dueCards = CARDS.filter(c => (deck==="all"||c.deck===deck) && prog[c.id].s>=0 && prog[c.id].d<=now)
+    .sort((a,b)=>prog[a.id].d-prog[b.id].d).slice(0, cfg.revLimit);
+  // 新卡（受每日上限）
+  const used = S.daily && S.daily["new_"+today0()] ? Object.keys(S.daily["new_"+today0()]).length : 0;
+  const freshCards = CARDS.filter(c => (deck==="all"||c.deck===deck) && prog[c.id].s===-1)
+    .slice(0, Math.max(0, cfg.newLimit - used));
+  if (dueCards.length === 0 && freshCards.length===0) { toast(deck==="all"?"当前没有到期的卡":"这个组当前没有到期/可学的卡"); renderHome(); return; }
+  sessionLog = { deck, again:0, hard:0, good:0, easy:0, total: dueCards.length+freshCards.length };
+  queue = [...dueCards, ...freshCards];
+  show("review-page"); renderCurrent();
+}
+
+function renderCurrent() {
+  if (!queue.length) return finishSession();
+  cur = queue[0];
+  const p = prog[cur.id];
+  const dk = DECKS.find(d=>d.id===cur.deck);
+  document.getElementById("r-tag").textContent = (dk?dk.name:cur.deck) + (p.s===-1 ? " · 新卡" : ` · 第${LADDER[Math.min(p.s,LADDER.length-1)]}天档`);
+  document.getElementById("r-q").textContent = cur.q;
+  const a = document.getElementById("r-a");
+  a.textContent = cur.a; a.style.display = "none";
+  document.getElementById("reveal-btn").style.display = "block";
+  document.getElementById("grade-btns").style.display = "none";
+  updateBar();
+}
+function updateBar() {
+  document.getElementById("sessionbar").textContent = `剩余 ${queue.length} / ${sessionLog.total}`;
+}
+function reveal() {
+  document.getElementById("r-a").style.display = "block";
+  document.getElementById("reveal-btn").style.display = "none";
+  document.getElementById("grade-btns").style.display = "grid";
+}
+function grade(g) {
+  const now = Date.now(), p = prog[cur.id];
+  const wasNew = p.s === -1;
+  if (g === "again")      { p.s = 0; p.d = now + 10*MIN; p.lapse++; sessionLog.again++; }
+  else if (g === "hard")  { p.s = 0; p.d = now + DAY; sessionLog.hard++; }
+  else if (g === "good")  { p.s = p.s===-1 ? 0 : Math.min(p.s+1, LADDER.length-1); p.d = now + LADDER[p.s]*DAY; sessionLog.good++; }
+  else                    { p.s = p.s===-1 ? 1 : Math.min(p.s+2, LADDER.length-1); p.d = now + LADDER[p.s]*DAY; sessionLog.easy++; }
+  // 新卡首次被评级时，计入当日新卡额度
+  if (wasNew) {
+    const key = "new_" + today0();
+    S.daily = S.daily || {}; S.daily[key] = S.daily[key] || {};
+    S.daily[key][cur.id] = 1;
+  }
+  queue.shift();
+  save();
+  renderCurrent();
+}
+function finishSession() {
+  show("result-page");
+  const log = sessionLog || {again:0,hard:0,good:0,easy:0};
+  document.getElementById("result-sub").textContent = `${log.total} 张 · ${new Date().toTimeString().slice(0,5)}`;
+  document.getElementById("result-detail").innerHTML =
+    `忘了 ${log.again} 张 · 模糊 ${log.hard} 张 · 记得 ${log.good} 张 · 轻松 ${log.easy} 张<br>
+     「忘了」的卡 10 分钟后回到队尾，建议今天内再过一遍；<br>
+     「模糊」的卡明天到期。`;
+}
+function endSession() { queue = []; sessionLog=null; show("home-page"); renderHome(); }
+
+// ===== 导出 / 导入 =====
+function exportProgress() {
+  const data = JSON.stringify({ version: 1, cfg, prog }, null, 2);
+  const blob = new Blob([data], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "recall-backup-" + new Date().toISOString().slice(0,10) + ".json";
+  a.click();
+}
+function importProgress(input) {
+  const f = input.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (data.prog) { S.prog = data.prog; prog = S.prog; }
+      if (data.cfg) { S.cfg = data.cfg; cfg = data.cfg; }
+      save(); toast("已导入");
+      renderHome();
+    } catch (err) { toast("文件格式不对"); }
+    input.value = "";
+  };
+  r.readAsText(f);
+}
+
+function setNewLimit(v) { cfg.newLimit = +v; document.getElementById("new-limit-val").textContent = v; save(); }
+function setRevLimit(v) { cfg.revLimit = +v; document.getElementById("rev-limit-val").textContent = v; save(); }
+
+function show(id) {
+  for (const p of ["home-page","review-page","result-page","settings-page"])
+    document.getElementById(p).style.display = p===id ? "block" : "none";
+  window.scrollTo(0,0);
+}
+// 清理 5 天前的每日新卡计数记录
+(function cleanupDaily(){
+  if (!S.daily) return;
+  for (const k of Object.keys(S.daily)) {
+    const day = +k.slice(4);
+    if (Date.now() - day > 5*DAY) delete S.daily[k];
+  }
+})();
+renderHome();
+</script>
+</body>
+</html>
